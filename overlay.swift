@@ -1,5 +1,21 @@
 import Cocoa
 
+// MARK: - Temp File Helpers
+
+let tempImagePath: String = {
+    let tempDir = NSTemporaryDirectory()
+    return (tempDir as NSString).appendingPathComponent("image-overlay-last.png")
+}()
+
+func saveTempImage(_ image: NSImage) {
+    guard let tiffData = image.tiffRepresentation,
+          let bitmapRep = NSBitmapImageRep(data: tiffData),
+          let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+        return
+    }
+    try? pngData.write(to: URL(fileURLWithPath: tempImagePath))
+}
+
 // MARK: - Custom Draggable Image View
 
 class DraggableImageView: NSImageView {
@@ -38,8 +54,6 @@ let closeHandler = CloseHandler()
 // MARK: - Custom Floating Close Button
 
 class OverlayCloseButton: NSButton {
-    private var trackingArea: NSTrackingArea?
-
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         self.title = "✕"
@@ -89,11 +103,13 @@ func printUsage() {
     Usage:
         image-overlay <image_path> [opacity]
         image-overlay --clipboard [opacity]
+        image-overlay --resume [opacity]
         image-overlay [options]
 
     Source Options:
         <image_path>          Path to image file (PNG, JPG, TIFF, WebP, etc.)
         -c, --clipboard       Use image currently stored in macOS clipboard
+        -r, --resume          Reuse the last displayed image saved in temp storage
 
     Options:
         -o, --opacity <val>   Overlay opacity level (0.0 to 1.0, default: 0.5)
@@ -106,12 +122,9 @@ func printUsage() {
         --no-close            Hide the top-right close button
         --help, -h            Show this help message and exit
 
-    Interactivity & Dragging:
-        By default, the overlay is DRAGGABLE by clicking and moving the image, and includes
-        a top-right '✕' close button. Pass --pass-through to make mouse clicks pass through.
-
     Examples:
-        image-overlay --clipboard 0.4
+        image-overlay -c 0.4
+        image-overlay --resume 0.5
         image-overlay mockup.png --opacity 0.6 --scale 0.8
         image-overlay reference.png -o 0.3 --pass-through
     """
@@ -123,6 +136,7 @@ func printUsage() {
 struct OverlayOptions {
     var imagePath: String = ""
     var useClipboard: Bool = false
+    var resume: Bool = false
     var opacity: CGFloat = 0.5
     var scale: CGFloat = 1.0
     var width: CGFloat? = nil
@@ -151,6 +165,8 @@ func parseArguments() -> OverlayOptions? {
         switch arg {
         case "-c", "--clipboard":
             options.useClipboard = true
+        case "-r", "--resume":
+            options.resume = true
         case "-o", "--opacity":
             if i + 1 < args.count, let val = Float(args[i + 1]) {
                 options.opacity = CGFloat(max(0.01, min(1.0, val)))
@@ -225,8 +241,8 @@ func parseArguments() -> OverlayOptions? {
         i += 1
     }
 
-    if options.imagePath.isEmpty && !options.useClipboard {
-        print("❌ Error: Image path or --clipboard flag is required.")
+    if options.imagePath.isEmpty && !options.useClipboard && !options.resume {
+        print("❌ Error: Image path, --clipboard, or --resume flag is required.")
         printUsage()
         return nil
     }
@@ -256,7 +272,16 @@ guard let config = parseArguments() else {
 let image: NSImage
 let sourceDescription: String
 
-if config.useClipboard {
+if config.resume {
+    guard FileManager.default.fileExists(atPath: tempImagePath),
+          let resumedImage = NSImage(contentsOfFile: tempImagePath) else {
+        print("❌ Error: No previous overlay image found in temp storage.")
+        print("💡 Tip: Run image-overlay with an image file or --clipboard first!")
+        exit(1)
+    }
+    image = resumedImage
+    sourceDescription = "Resumed Previous Image (\(tempImagePath))"
+} else if config.useClipboard {
     let pasteboard = NSPasteboard.general
     guard let clipboardImage = NSImage(pasteboard: pasteboard) else {
         print("❌ Error: No valid image found in macOS clipboard.")
@@ -265,6 +290,7 @@ if config.useClipboard {
     }
     image = clipboardImage
     sourceDescription = "macOS Clipboard"
+    saveTempImage(image)
 } else {
     let resolvedPath = resolvePath(config.imagePath)
     guard let fileImage = NSImage(contentsOfFile: resolvedPath) else {
@@ -273,6 +299,7 @@ if config.useClipboard {
     }
     image = fileImage
     sourceDescription = resolvedPath
+    saveTempImage(image)
 }
 
 // Initialize Application

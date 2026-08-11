@@ -1,11 +1,13 @@
 # 🖼️ Image Overlay CLI Tool for macOS
 
-A lightweight, native macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows. Includes full click-and-drag positioning, a sleek top-right close button, clipboard support, and optional click pass-through!
+A lightweight, native macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows. Includes full click-and-drag positioning, a sleek top-right close button, clipboard support, temp image caching, and a `--resume` flag!
 
 ---
 
 ## ✨ Features
 
+- 🔄 **Resume Last Image (`-r`, `--resume`)**: Instantly re-open the last displayed image without needing to specify the file path or copy to clipboard again!
+- 💾 **Auto-Save to Temp**: Automatically caches any loaded file or clipboard image to macOS temp directory (`image-overlay-last.png`).
 - 🖐️ **Draggable Window**: Click and drag anywhere on the overlay to move it around your screen.
 - 🔴 **Top-Right Close Button**: Click the sleek circular `✕` button to instantly close the overlay.
 - 📋 **Clipboard Support**: Display an image directly from your clipboard (`Cmd+C` or `Cmd+Shift+Ctrl+4`) using `-c` / `--clipboard`.
@@ -18,22 +20,26 @@ A lightweight, native macOS CLI utility that displays a floating, semi-transpare
 
 ## 🚀 Quick Usage
 
-### 🖐️ Draggable & Interactive Mode (Default)
-By default, the overlay is **draggable** by clicking anywhere on the image, and displays a red-hover `✕` close button in the top-right corner!
+### 🔄 Resume Previous Image
+Re-open the last image you used:
 
 ```bash
-# Overlay from clipboard (draggable + close button)
-image-overlay -c 0.4
-
-# Overlay from file (draggable + close button)
-image-overlay /path/to/image.png 0.5
+image-overlay -r
+# or
+image-overlay --resume 0.4
 ```
 
-### 👻 Click Pass-Through Mode
-If you want clicks to pass through the overlay to apps behind it:
+### 📋 Clipboard Overlay
+Copy any image or screenshot to your clipboard (`Cmd+Shift+Ctrl+4`), then run:
 
 ```bash
-image-overlay /path/to/image.png 0.4 --pass-through
+image-overlay -c 0.4
+```
+
+### 📁 Image File Overlay
+
+```bash
+image-overlay /path/to/image.png 0.5
 ```
 
 ---
@@ -44,11 +50,13 @@ image-overlay /path/to/image.png 0.4 --pass-through
 Usage:
     image-overlay <image_path> [opacity]
     image-overlay --clipboard [opacity]
+    image-overlay --resume [opacity]
     image-overlay [options]
 
 Source Options:
     <image_path>          Path to image file (PNG, JPG, TIFF, WebP, etc.)
     -c, --clipboard       Use image currently stored in macOS clipboard
+    -r, --resume          Reuse the last displayed image saved in temp storage
 
 Options:
     -o, --opacity <val>   Overlay opacity level (0.0 to 1.0, default: 0.5)
@@ -66,14 +74,14 @@ Options:
 
 ## 💡 Examples
 
-- **Draggable clipboard overlay with close button**:
+- **Quickly resume last overlay at 30% opacity**:
   ```bash
-  image-overlay -c 0.4
+  image-overlay -r 0.3
   ```
 
-- **Pass-through mode for tracing/mockup overlay**:
+- **Overlay clipboard image and cache it for future resume**:
   ```bash
-  image-overlay ~/Desktop/mockup.png 0.3 --pass-through
+  image-overlay -c 0.4
   ```
 
 - **Stopping the overlay**:
