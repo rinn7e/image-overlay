@@ -1,5 +1,85 @@
 import Cocoa
 
+// MARK: - Custom Draggable Image View
+
+class DraggableImageView: NSImageView {
+    private var initialLocation: NSPoint = .zero
+    var isDraggable: Bool = true
+
+    override func mouseDown(with event: NSEvent) {
+        initialLocation = event.locationInWindow
+        super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard isDraggable, let window = self.window else {
+            super.mouseDragged(with: event)
+            return
+        }
+        let currentLocation = event.locationInWindow
+        var newOrigin = window.frame.origin
+        newOrigin.x += currentLocation.x - initialLocation.x
+        newOrigin.y += currentLocation.y - initialLocation.y
+        window.setFrameOrigin(newOrigin)
+    }
+}
+
+// MARK: - Close Action Target
+
+class CloseHandler: NSObject {
+    @objc func closeOverlay() {
+        print("👋 Overlay closed.")
+        exit(0)
+    }
+}
+
+let closeHandler = CloseHandler()
+
+// MARK: - Custom Floating Close Button
+
+class OverlayCloseButton: NSButton {
+    private var trackingArea: NSTrackingArea?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        self.title = "✕"
+        self.font = NSFont.systemFont(ofSize: 11, weight: .bold)
+        self.bezelStyle = .circular
+        self.isBordered = false
+        self.wantsLayer = true
+        self.layer?.backgroundColor = NSColor(white: 0.15, alpha: 0.75).cgColor
+        self.layer?.cornerRadius = frameRect.width / 2
+        self.contentTintColor = .white
+        
+        self.target = closeHandler
+        self.action = #selector(CloseHandler.closeOverlay)
+        
+        setupTracking()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupTracking() {
+        let area = NSTrackingArea(
+            rect: self.bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        self.addTrackingArea(area)
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        self.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.9).cgColor
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        self.layer?.backgroundColor = NSColor(white: 0.15, alpha: 0.75).cgColor
+    }
+}
+
 // MARK: - Usage & Help
 
 func printUsage() {
@@ -8,12 +88,12 @@ func printUsage() {
     
     Usage:
         image-overlay <image_path> [opacity]
-        image-overlay <image_path> [options]
-        swift overlay.swift <image_path> [options]
+        image-overlay --clipboard [opacity]
+        image-overlay [options]
 
-    Positional Arguments:
-        <image_path>          Path to the image file (PNG, JPG, TIFF, WebP, etc.)
-        [opacity]             Optional opacity level between 0.1 and 1.0 (default: 0.5)
+    Source Options:
+        <image_path>          Path to image file (PNG, JPG, TIFF, WebP, etc.)
+        -c, --clipboard       Use image currently stored in macOS clipboard
 
     Options:
         -o, --opacity <val>   Overlay opacity level (0.0 to 1.0, default: 0.5)
@@ -22,13 +102,18 @@ func printUsage() {
         -h, --height <pixels> Set specific overlay height
         -x <pixels>           Screen X coordinate (bottom-left origin)
         -y <pixels>           Screen Y coordinate (bottom-left origin)
-        --interactive         Allow mouse clicks on overlay (disables click pass-through)
+        --pass-through, --lock Enable click pass-through mode (clicks go to apps underneath)
+        --no-close            Hide the top-right close button
         --help, -h            Show this help message and exit
 
+    Interactivity & Dragging:
+        By default, the overlay is DRAGGABLE by clicking and moving the image, and includes
+        a top-right '✕' close button. Pass --pass-through to make mouse clicks pass through.
+
     Examples:
-        image-overlay screenshot.png 0.4
+        image-overlay --clipboard 0.4
         image-overlay mockup.png --opacity 0.6 --scale 0.8
-        image-overlay reference.png -o 0.3 -x 100 -y 200 --interactive
+        image-overlay reference.png -o 0.3 --pass-through
     """
     print(usage)
 }
@@ -37,13 +122,15 @@ func printUsage() {
 
 struct OverlayOptions {
     var imagePath: String = ""
+    var useClipboard: Bool = false
     var opacity: CGFloat = 0.5
     var scale: CGFloat = 1.0
     var width: CGFloat? = nil
     var height: CGFloat? = nil
     var x: CGFloat? = nil
     var y: CGFloat? = nil
-    var interactive: Bool = false
+    var passThrough: Bool = false
+    var showCloseButton: Bool = true
 }
 
 func parseArguments() -> OverlayOptions? {
@@ -62,6 +149,8 @@ func parseArguments() -> OverlayOptions? {
         let arg = args[i]
 
         switch arg {
+        case "-c", "--clipboard":
+            options.useClipboard = true
         case "-o", "--opacity":
             if i + 1 < args.count, let val = Float(args[i + 1]) {
                 options.opacity = CGFloat(max(0.01, min(1.0, val)))
@@ -110,8 +199,10 @@ func parseArguments() -> OverlayOptions? {
                 print("❌ Error: Invalid Y coordinate after \(arg)")
                 return nil
             }
-        case "--interactive":
-            options.interactive = true
+        case "--pass-through", "--lock":
+            options.passThrough = true
+        case "--no-close":
+            options.showCloseButton = false
         default:
             if arg.hasPrefix("-") {
                 print("❌ Error: Unknown option '\(arg)'")
@@ -134,8 +225,8 @@ func parseArguments() -> OverlayOptions? {
         i += 1
     }
 
-    if options.imagePath.isEmpty {
-        print("❌ Error: Image path is required.")
+    if options.imagePath.isEmpty && !options.useClipboard {
+        print("❌ Error: Image path or --clipboard flag is required.")
         printUsage()
         return nil
     }
@@ -162,10 +253,26 @@ guard let config = parseArguments() else {
     exit(1)
 }
 
-let resolvedPath = resolvePath(config.imagePath)
-guard let image = NSImage(contentsOfFile: resolvedPath) else {
-    print("❌ Error: Unable to load image at '\(resolvedPath)'")
-    exit(1)
+let image: NSImage
+let sourceDescription: String
+
+if config.useClipboard {
+    let pasteboard = NSPasteboard.general
+    guard let clipboardImage = NSImage(pasteboard: pasteboard) else {
+        print("❌ Error: No valid image found in macOS clipboard.")
+        print("💡 Tip: Copy an image or screenshot (Cmd+Shift+Ctrl+4) first!")
+        exit(1)
+    }
+    image = clipboardImage
+    sourceDescription = "macOS Clipboard"
+} else {
+    let resolvedPath = resolvePath(config.imagePath)
+    guard let fileImage = NSImage(contentsOfFile: resolvedPath) else {
+        print("❌ Error: Unable to load image at '\(resolvedPath)'")
+        exit(1)
+    }
+    image = fileImage
+    sourceDescription = resolvedPath
 }
 
 // Initialize Application
@@ -208,24 +315,41 @@ window.level = .floating
 window.isOpaque = false
 window.backgroundColor = .clear
 window.alphaValue = config.opacity
-window.ignoresMouseEvents = !config.interactive
-window.isMovableByWindowBackground = config.interactive
+window.ignoresMouseEvents = config.passThrough
+window.isMovableByWindowBackground = !config.passThrough
 
-// Image View Setup
-let imageView = NSImageView(frame: window.contentView!.bounds)
+// Draggable Image View Setup
+let imageView = DraggableImageView(frame: window.contentView!.bounds)
 imageView.image = image
 imageView.imageScaling = .scaleAxesIndependently
 imageView.autoresizingMask = [.width, .height]
+imageView.isDraggable = !config.passThrough
 window.contentView?.addSubview(imageView)
+
+// Floating Close Button Setup
+if config.showCloseButton && !config.passThrough {
+    let btnSize: CGFloat = 22
+    let margin: CGFloat = 6
+    let btnFrame = NSRect(
+        x: finalWidth - btnSize - margin,
+        y: finalHeight - btnSize - margin,
+        width: btnSize,
+        height: btnSize
+    )
+    let closeBtn = OverlayCloseButton(frame: btnFrame)
+    closeBtn.autoresizingMask = [.minXMargin, .minYMargin]
+    window.contentView?.addSubview(closeBtn)
+}
 
 // Show Window
 window.makeKeyAndOrderFront(nil)
 
 print("✨ Image Overlay active! ✨")
-print("  📍 File: \(resolvedPath)")
+print("  📍 Source: \(sourceDescription)")
 print("  🔍 Dimensions: \(Int(finalWidth))x\(Int(finalHeight))")
-print("  opacity: \(config.opacity)")
-print("  🖱️ Click Pass-Through: \(config.interactive ? "Disabled (Interactive)" : "Enabled (Clicks pass through)")")
-print("  🛑 Press Ctrl+C in terminal to stop.")
+print("  🎚️ Opacity: \(config.opacity)")
+print("  🖐️ Draggable: \(!config.passThrough ? "Yes (Click & Drag)" : "No (Pass-Through Active)")")
+print("  🔴 Close Button: \(config.showCloseButton && !config.passThrough ? "Visible (Top-Right)" : "Hidden")")
+print("  🛑 Press Ctrl+C in terminal or click ✕ to stop.")
 
 app.run()

@@ -1,46 +1,39 @@
 # 🖼️ Image Overlay CLI Tool for macOS
 
-A lightweight, native macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows with mouse click pass-through support.
+A lightweight, native macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows. Includes full click-and-drag positioning, a sleek top-right close button, clipboard support, and optional click pass-through!
 
 ---
 
 ## ✨ Features
 
-- 🪟 **Floating Window**: Stays above all open applications.
-- 👻 **Click Pass-Through**: Mouse clicks pass straight through the overlay to underlying windows by default.
+- 🖐️ **Draggable Window**: Click and drag anywhere on the overlay to move it around your screen.
+- 🔴 **Top-Right Close Button**: Click the sleek circular `✕` button to instantly close the overlay.
+- 📋 **Clipboard Support**: Display an image directly from your clipboard (`Cmd+C` or `Cmd+Shift+Ctrl+4`) using `-c` / `--clipboard`.
+- 👻 **Optional Click Pass-Through**: Pass `--pass-through` to allow mouse clicks to pass straight through the overlay to underlying windows.
 - 🎨 **Adjustable Opacity**: Specify transparency levels from `0.01` (almost invisible) to `1.0` (opaque).
-- 📐 **Custom Scaling & Positioning**: Easily scale images, set custom dimensions, or place the overlay anywhere on screen.
+- 📐 **Custom Scaling & Dimensions**: Easily scale images or set specific window sizes.
 - ⚡ **Zero External Dependencies**: Built natively using macOS Cocoa Framework and Swift.
 
 ---
 
 ## 🚀 Quick Usage
 
-### Option A: Direct Swift Script Execution
-No pre-compilation required! macOS has `swift` built-in:
+### 🖐️ Draggable & Interactive Mode (Default)
+By default, the overlay is **draggable** by clicking anywhere on the image, and displays a red-hover `✕` close button in the top-right corner!
 
 ```bash
-swift overlay.swift /path/to/image.png 0.4
+# Overlay from clipboard (draggable + close button)
+image-overlay -c 0.4
+
+# Overlay from file (draggable + close button)
+image-overlay /path/to/image.png 0.5
 ```
 
-### Option B: Pre-compiled Standalone Binary (Recommended)
-Compile the fast release binary once:
+### 👻 Click Pass-Through Mode
+If you want clicks to pass through the overlay to apps behind it:
 
 ```bash
-# Build binary
-make build
-# or run ./build.sh
-
-# Run executable
-./bin/image-overlay /path/to/image.png 0.4
-```
-
-### Option C: System-wide Installation
-Install the binary into `/usr/local/bin` so you can call `image-overlay` from any directory:
-
-```bash
-make install
-image-overlay /path/to/image.png -o 0.5
+image-overlay /path/to/image.png 0.4 --pass-through
 ```
 
 ---
@@ -50,12 +43,12 @@ image-overlay /path/to/image.png -o 0.5
 ```
 Usage:
     image-overlay <image_path> [opacity]
-    image-overlay <image_path> [options]
-    swift overlay.swift <image_path> [options]
+    image-overlay --clipboard [opacity]
+    image-overlay [options]
 
-Positional Arguments:
+Source Options:
     <image_path>          Path to image file (PNG, JPG, TIFF, WebP, etc.)
-    [opacity]             Optional opacity level (0.1 to 1.0, default: 0.5)
+    -c, --clipboard       Use image currently stored in macOS clipboard
 
 Options:
     -o, --opacity <val>   Overlay opacity level (0.0 to 1.0, default: 0.5)
@@ -64,7 +57,8 @@ Options:
     -h, --height <pixels> Set specific overlay height
     -x <pixels>           Screen X coordinate (bottom-left origin)
     -y <pixels>           Screen Y coordinate (bottom-left origin)
-    --interactive         Allow mouse clicks on overlay (disables click pass-through)
+    --pass-through, --lock Enable click pass-through (clicks go to apps underneath)
+    --no-close            Hide the top-right close button
     --help, -h            Show help message and exit
 ```
 
@@ -72,20 +66,15 @@ Options:
 
 ## 💡 Examples
 
-- **Quick 40% transparent overlay**:
+- **Draggable clipboard overlay with close button**:
   ```bash
-  image-overlay ~/Desktop/mockup.png 0.4
+  image-overlay -c 0.4
   ```
 
-- **Scaled down image with custom position**:
+- **Pass-through mode for tracing/mockup overlay**:
   ```bash
-  image-overlay ~/Desktop/design.png --opacity 0.3 --scale 0.75 -x 100 -y 200
-  ```
-
-- **Interactive mode (draggable / receives mouse clicks)**:
-  ```bash
-  image-overlay ~/Desktop/reference.png -o 0.5 --interactive
+  image-overlay ~/Desktop/mockup.png 0.3 --pass-through
   ```
 
 - **Stopping the overlay**:
-  Press `Ctrl + C` in the Terminal window running the command to close the overlay.
+  Click the top-right `✕` button, or press `Ctrl + C` in Terminal.
