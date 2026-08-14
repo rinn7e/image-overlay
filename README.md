@@ -4,28 +4,24 @@
 
 A lightweight, zero-dependency macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows.
 
-## Features
+## Main Workflow
 
-- **Clipboard Support**: Display images directly from your clipboard (`-c`, `--clipboard`).
-- **Resume Last Image**: Re-open the last displayed image (`-r`, `--resume`).
-- **Click & Drag**: Move the overlay window anywhere on your screen.
-- **Click Pass-Through**: Pass mouse clicks straight to underlying windows (`--pass-through`).
-- **Customizable**: Adjust opacity, scale factor, dimensions, and positioning.
-
-## Quick Start
+Copy an image or screenshot (`Cmd+Shift+Ctrl+4`) and run:
 
 ```bash
-# Run with an image file
-swift overlay.swift /path/to/image.png 0.5
+# 1. Overlay image from clipboard
+swift overlay.swift --clipboard 0.5
 
-# Run with clipboard image
-swift overlay.swift -c 0.4
-
-# Resume last used image
-swift overlay.swift -r
+# 2. Resume the last used overlay image
+swift overlay.swift --resume
 ```
 
-## Usage
+## Advanced Usage
+
+```bash
+# Overlay an image file directly
+swift overlay.swift /path/to/image.png 0.5
+```
 
 ```text
 Usage:
@@ -50,6 +46,14 @@ Options:
     --no-close            Hide top-right close button
     --help, -h            Show help message
 ```
+
+## Features
+
+- **Clipboard Support**: Display images directly from your clipboard (`-c`, `--clipboard`).
+- **Resume Last Image**: Re-open the last displayed image (`-r`, `--resume`).
+- **Click & Drag**: Move the overlay window anywhere on your screen.
+- **Click Pass-Through**: Pass mouse clicks straight to underlying windows (`--pass-through`).
+- **Customizable**: Adjust opacity, scale factor, dimensions, and positioning.
 
 ## License
 
