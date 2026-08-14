@@ -101,10 +101,10 @@ func printUsage() {
     🖼️  Image Overlay CLI Utility for macOS
     
     Usage:
-        image-overlay <image_path> [opacity]
-        image-overlay --clipboard [opacity]
-        image-overlay --resume [opacity]
-        image-overlay [options]
+        swift overlay.swift <image_path> [opacity]
+        swift overlay.swift --clipboard [opacity]
+        swift overlay.swift --resume [opacity]
+        swift overlay.swift [options]
 
     Source Options:
         <image_path>          Path to image file (PNG, JPG, TIFF, WebP, etc.)
@@ -123,10 +123,10 @@ func printUsage() {
         --help, -h            Show this help message and exit
 
     Examples:
-        image-overlay -c 0.4
-        image-overlay --resume 0.5
-        image-overlay mockup.png --opacity 0.6 --scale 0.8
-        image-overlay reference.png -o 0.3 --pass-through
+        swift overlay.swift -c 0.4
+        swift overlay.swift --resume 0.5
+        swift overlay.swift mockup.png --opacity 0.6 --scale 0.8
+        swift overlay.swift reference.png -o 0.3 --pass-through
     """
     print(usage)
 }
@@ -276,7 +276,7 @@ if config.resume {
     guard FileManager.default.fileExists(atPath: tempImagePath),
           let resumedImage = NSImage(contentsOfFile: tempImagePath) else {
         print("❌ Error: No previous overlay image found in temp storage.")
-        print("💡 Tip: Run image-overlay with an image file or --clipboard first!")
+        print("💡 Tip: Run swift overlay.swift with an image file or --clipboard first!")
         exit(1)
     }
     image = resumedImage
