@@ -1,5 +1,7 @@
 # Image Overlay CLI
 
+[![AI-DECLARATION: assist](https://img.shields.io/badge/䷼%20AI--DECLARATION-assist-fef9c3?labelColor=fef9c3)](AI-DECLARATION.md)
+
 ![Image Overlay CLI](doc/screenshot/image.png)
 
 A lightweight, zero-dependency macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows.
@@ -54,6 +56,11 @@ Options:
 - **Click & Drag**: Move the overlay window anywhere on your screen.
 - **Click Pass-Through**: Pass mouse clicks straight to underlying windows (`--pass-through`).
 - **Customizable**: Adjust opacity, scale factor, dimensions, and positioning.
+
+## AI declaration
+
+This project declares its AI usage in [AI-DECLARATION.md](AI-DECLARATION.md), following the
+[AI-DECLARATION.md](https://ai-declaration.md) standard (level: `assist`).
 
 ## License
 
