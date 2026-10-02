@@ -6,6 +6,20 @@
 
 A lightweight, zero-dependency macOS CLI utility that displays a floating, semi-transparent image overlay on top of all windows.
 
+## Requirements
+
+- macOS (tested on macOS 26 with Swift 6.3)
+- Xcode Command Line Tools, for the `swift` command: `xcode-select --install`
+
+## Faster Startup (Optional)
+
+`swift overlay.swift` compiles the script on every run, which takes a few seconds. Compile it once to start instantly:
+
+```bash
+swiftc -O overlay.swift -o image-overlay
+./image-overlay --clipboard 0.5
+```
+
 ## Main Workflow
 
 Copy an image or screenshot (`Cmd+Shift+Ctrl+4`) and run:
@@ -67,6 +81,7 @@ Options:
 - **Click & Drag**: Move the overlay window anywhere on your screen.
 - **Click Pass-Through**: Pass mouse clicks straight to underlying windows (`--pass-through`).
 - **Customizable**: Adjust opacity, scale factor, dimensions, and positioning.
+- **Compose Mode**: Write a PNG of one image overlaid on another (top-aligned, horizontally centered), e.g. to compare a design export with a page screenshot (`--compose`).
 
 ## AI declaration
 

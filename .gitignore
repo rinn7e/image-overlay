@@ -1,14 +1,14 @@
 # Build artifacts
 bin/
+/image-overlay
 *.o
 *.out
 
 # macOS metadata
 .DS_Store
 
-# Claude Code local settings
-.claude/settings.local.json
-.claude/launch.json
+# Claude Code local config (may contain machine-specific paths)
+.claude/
 
 # Generated images and working files
 out/
