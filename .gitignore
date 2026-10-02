@@ -5,3 +5,10 @@ bin/
 
 # macOS metadata
 .DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/launch.json
+
+# Generated images and working files
+out/

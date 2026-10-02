@@ -104,6 +104,7 @@ func printUsage() {
         swift overlay.swift <image_path> [opacity]
         swift overlay.swift --clipboard [opacity]
         swift overlay.swift --resume [opacity]
+        swift overlay.swift --compose <base_path> <overlay_path> [opacity] [--out <path>]
         swift overlay.swift [options]
 
     Source Options:
@@ -111,11 +112,16 @@ func printUsage() {
         -c, --clipboard       Use image currently stored in macOS clipboard
         -r, --resume          Reuse the last displayed image saved in temp storage
 
+    Compose Mode (no window, writes a PNG):
+        --compose             Draw overlay onto base (top-aligned, horizontally centered)
+        --out <path>          Output file (default: <base_name>-overlay.png next to base)
+                              Output matches the base size; -o and -s/-w/-H apply to the overlay
+
     Options:
         -o, --opacity <val>   Overlay opacity level (0.0 to 1.0, default: 0.5)
         -s, --scale <factor>  Scale factor for original image dimensions (e.g. 0.5, 2.0)
         -w, --width <pixels>  Set specific overlay width
-        -h, --height <pixels> Set specific overlay height
+        -H, --height <pixels> Set specific overlay height
         -x <pixels>           Screen X coordinate (bottom-left origin)
         -y <pixels>           Screen Y coordinate (bottom-left origin)
         --pass-through, --lock Enable click pass-through mode (clicks go to apps underneath)
@@ -127,6 +133,7 @@ func printUsage() {
         swift overlay.swift --resume 0.5
         swift overlay.swift mockup.png --opacity 0.6 --scale 0.8
         swift overlay.swift reference.png -o 0.3 --pass-through
+        swift overlay.swift --compose base.png overlay.png 0.5 --out result.png
     """
     print(usage)
 }
@@ -145,6 +152,9 @@ struct OverlayOptions {
     var y: CGFloat? = nil
     var passThrough: Bool = false
     var showCloseButton: Bool = true
+    var compose: Bool = false
+    var overlayPath: String = ""
+    var outputPath: String? = nil
 }
 
 func parseArguments() -> OverlayOptions? {
@@ -156,6 +166,7 @@ func parseArguments() -> OverlayOptions? {
     }
 
     var options = OverlayOptions()
+    options.compose = args.contains("--compose")
     var positionalIndex = 0
     var i = 0
 
@@ -191,7 +202,7 @@ func parseArguments() -> OverlayOptions? {
                 print("❌ Error: Invalid width value after \(arg)")
                 return nil
             }
-        case "-h", "--height":
+        case "-H", "--height":
             if i + 1 < args.count, let val = Float(args[i + 1]) {
                 options.height = CGFloat(val)
                 i += 1
@@ -219,15 +230,29 @@ func parseArguments() -> OverlayOptions? {
             options.passThrough = true
         case "--no-close":
             options.showCloseButton = false
+        case "--compose":
+            break
+        case "--out":
+            if i + 1 < args.count {
+                options.outputPath = args[i + 1]
+                i += 1
+            } else {
+                print("❌ Error: Missing output path after \(arg)")
+                return nil
+            }
         default:
             if arg.hasPrefix("-") {
                 print("❌ Error: Unknown option '\(arg)'")
                 printUsage()
                 return nil
             } else {
+                // In compose mode the overlay path takes slot 1, shifting opacity to slot 2
+                let opacityIndex = options.compose ? 2 : 1
                 if positionalIndex == 0 {
                     options.imagePath = arg
-                } else if positionalIndex == 1 {
+                } else if options.compose && positionalIndex == 1 {
+                    options.overlayPath = arg
+                } else if positionalIndex == opacityIndex {
                     if let val = Float(arg) {
                         options.opacity = CGFloat(max(0.01, min(1.0, val)))
                     } else {
@@ -239,6 +264,15 @@ func parseArguments() -> OverlayOptions? {
             }
         }
         i += 1
+    }
+
+    if options.compose {
+        if options.imagePath.isEmpty || options.overlayPath.isEmpty {
+            print("❌ Error: --compose requires <base_path> and <overlay_path>.")
+            printUsage()
+            return nil
+        }
+        return options
     }
 
     if options.imagePath.isEmpty && !options.useClipboard && !options.resume {
@@ -263,10 +297,104 @@ func resolvePath(_ path: String) -> String {
     }
 }
 
+// MARK: - Compose Mode
+
+func loadPixelImage(_ path: String) -> CGImage? {
+    guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else {
+        return nil
+    }
+    return CGImageSourceCreateImageAtIndex(source, 0, nil)
+}
+
+func runCompose(_ config: OverlayOptions) -> Never {
+    let basePath = resolvePath(config.imagePath)
+    let overlayPath = resolvePath(config.overlayPath)
+
+    guard let base = loadPixelImage(basePath) else {
+        print("❌ Error: Unable to load base image at '\(basePath)'")
+        exit(1)
+    }
+    guard let overlay = loadPixelImage(overlayPath) else {
+        print("❌ Error: Unable to load overlay image at '\(overlayPath)'")
+        exit(1)
+    }
+
+    // Work in real pixels so Retina screenshots are not halved
+    let canvasWidth = base.width
+    let canvasHeight = base.height
+
+    var overlayWidth = CGFloat(overlay.width) * config.scale
+    var overlayHeight = CGFloat(overlay.height) * config.scale
+    let aspectRatio = CGFloat(overlay.width) / CGFloat(overlay.height)
+    if let w = config.width, let h = config.height {
+        overlayWidth = w
+        overlayHeight = h
+    } else if let w = config.width {
+        overlayWidth = w
+        overlayHeight = w / aspectRatio
+    } else if let h = config.height {
+        overlayHeight = h
+        overlayWidth = h * aspectRatio
+    }
+
+    guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+          let context = CGContext(
+            data: nil,
+            width: canvasWidth,
+            height: canvasHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+          ) else {
+        print("❌ Error: Unable to create drawing context.")
+        exit(1)
+    }
+
+    context.interpolationQuality = .high
+    context.draw(base, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+
+    // Top-aligned, horizontally centered (CoreGraphics origin is bottom-left)
+    let overlayX = (CGFloat(canvasWidth) - overlayWidth) / 2
+    let overlayY = CGFloat(canvasHeight) - overlayHeight
+    context.setAlpha(config.opacity)
+    context.draw(overlay, in: CGRect(x: overlayX, y: overlayY, width: overlayWidth, height: overlayHeight))
+
+    let outputPath: String
+    if let out = config.outputPath {
+        outputPath = resolvePath(out)
+    } else {
+        let baseName = ((basePath as NSString).lastPathComponent as NSString).deletingPathExtension
+        let baseDir = (basePath as NSString).deletingLastPathComponent
+        outputPath = (baseDir as NSString).appendingPathComponent("\(baseName)-overlay.png")
+    }
+
+    guard let result = context.makeImage(),
+          let destination = CGImageDestinationCreateWithURL(
+            URL(fileURLWithPath: outputPath) as CFURL, "public.png" as CFString, 1, nil
+          ) else {
+        print("❌ Error: Unable to prepare output at '\(outputPath)'")
+        exit(1)
+    }
+    CGImageDestinationAddImage(destination, result, nil)
+    guard CGImageDestinationFinalize(destination) else {
+        print("❌ Error: Failed to write output image to '\(outputPath)'")
+        exit(1)
+    }
+
+    print("✅ Composed image saved to: \(outputPath)")
+    print("   Base: \(canvasWidth)x\(canvasHeight) | Overlay: \(Int(overlayWidth))x\(Int(overlayHeight)) | Opacity: \(String(format: "%.2f", config.opacity))")
+    exit(0)
+}
+
 // MARK: - Application Entry Point
 
 guard let config = parseArguments() else {
     exit(1)
+}
+
+if config.compose {
+    runCompose(config)
 }
 
 let image: NSImage
