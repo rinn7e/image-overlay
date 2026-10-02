@@ -32,6 +32,10 @@ swift overlay.swift --clipboard 0.5
 swift overlay.swift --resume
 ```
 
+![Main workflow: a design copied to the clipboard floats at 50% opacity over the page in the browser](doc/screenshot/workflow.png)
+
+The overlay floats above every window. Drag it to line it up with the page underneath, then click ✕ (or press Ctrl+C in the terminal) to close it. Anything that doesn't match shows up as a "ghost" double image. (Illustration.)
+
 ## Advanced Usage
 
 ```bash
