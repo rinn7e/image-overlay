@@ -44,6 +44,22 @@ swift overlay.swift --compose base.png overlay.png 0.5 --out result.png
 
 Keep screenshots and generated images in `out/` (git-ignored), e.g. `out/<project>/`.
 
+### Compose Mode Example
+
+Compare a screenshot of your implementation with the design export. Wherever they differ, you see a "ghost" double image:
+
+```bash
+swift overlay.swift --compose doc/compose/website.png doc/compose/design.png 0.5 --out doc/compose/result.png
+```
+
+| Base: `website.png` | Overlay: `design.png` | Result: `result.png` |
+|---|---|---|
+| ![Website screenshot](doc/compose/website.png) | ![Design export](doc/compose/design.png) | ![Composed result](doc/compose/result.png) |
+
+In the result, the title is larger and lower than in the design, and the button is narrower and further down. If both images were identical, the result would look like a single crisp image.
+
+The overlay is drawn top-aligned and horizontally centered, at the given opacity. The output always has the size of the base image. For a 2x (Retina) screenshot compared with a 1x design export, add `-s 2` to scale the overlay.
+
 ```text
 Usage:
     swift overlay.swift <image_path> [opacity]
