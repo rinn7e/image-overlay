@@ -94,6 +94,10 @@ Options:
     --help, -h            Show help message
 ```
 
+## Using with an LLM Agent
+
+Compose mode works well in a loop with a coding agent: capture the page, compose it with the design export, review, fix, and repeat. See [doc/llm-workflow.md](doc/llm-workflow.md) for the full workflow, pitfalls and example prompts.
+
 ## Features
 
 - **Clipboard Support**: Display images directly from your clipboard (`-c`, `--clipboard`).
